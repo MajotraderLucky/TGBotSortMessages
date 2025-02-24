@@ -19,11 +19,18 @@ func Run(ctx context.Context, client *telegram.Client) error {
 	}
 	log.Printf("✅ Авторизован как %s", user.Username)
 
-	messages, err := telegram.GetUnreadMessages(ctx, client)
+	unreadMessages, err := telegram.GetUnreadMessages(ctx, client)
 	if err != nil {
-		log.Printf("⚠️ Ошибка получения сообщений: %v", err)
-		return nil
+		log.Printf("⚠️ Ошибка получения непрочитанных сообщений: %v", err)
 	}
+
+	directMessages, err := telegram.GetDirectMessages(ctx, client)
+	if err != nil {
+		log.Printf("⚠️ Ошибка поиска входящих сообщений: %v", err)
+	}
+
+	// Объединяем результаты двух методов
+	messages := append(unreadMessages, directMessages...)
 
 	if err := storage.SaveMessagesToJSON(messages); err != nil {
 		log.Printf("⚠️ Ошибка сохранения JSON: %v", err)
@@ -36,4 +43,5 @@ func Run(ctx context.Context, client *telegram.Client) error {
 	log.Println("✅ Обновление завершено.")
 	return nil
 }
+
 
