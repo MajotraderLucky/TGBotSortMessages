@@ -9,36 +9,10 @@ import (
 	"path/filepath"
 
 	"github.com/gotd/td/tg"
+	"tgmessenger/internal/auth"
 	"tgmessenger/internal/config"
 	"tgmessenger/internal/telegram"
 )
-
-// Авторизация клиента
-func authorizeClient(ctx context.Context, client *telegram.Client) (*tg.User, error) {
-	api := tg.NewClient(client.RawClient())
-	authClient := client.RawClient().Auth()
-
-	status, err := authClient.Status(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if !status.Authorized {
-		return nil, fmt.Errorf("пользователь не авторизован")
-	}
-
-	users, err := api.UsersGetUsers(ctx, []tg.InputUserClass{&tg.InputUserSelf{}})
-	if err != nil {
-		return nil, err
-	}
-
-	user, ok := users[0].(*tg.User)
-	if !ok {
-		return nil, fmt.Errorf("ошибка приведения типа к *tg.User")
-	}
-
-	return user, nil
-}
 
 // Фильтр для чатов и пользователей (игнорируем каналы)
 func getInputPeer(peer tg.PeerClass) tg.InputPeerClass {
@@ -54,7 +28,7 @@ func getInputPeer(peer tg.PeerClass) tg.InputPeerClass {
 
 // Получаем непрочитанные сообщения (без каналов)
 func getUnreadMessages(ctx context.Context, client *telegram.Client) ([]string, error) {
-	api := tg.NewClient(client.RawClient())
+	api := tg.NewClient(client.RawClient()) // Создаём tg.Client
 
 	resp, err := api.MessagesGetDialogs(ctx, &tg.MessagesGetDialogsRequest{
 		OffsetPeer: &tg.InputPeerEmpty{},
@@ -96,7 +70,7 @@ func getUnreadMessages(ctx context.Context, client *telegram.Client) ([]string, 
 			continue
 		}
 
-		// 📌 Обрабатываем все возможные типы ответов
+		// Обрабатываем все возможные типы ответов
 		var messages []tg.MessageClass
 		switch h := historyResp.(type) {
 		case *tg.MessagesMessages:
@@ -113,7 +87,11 @@ func getUnreadMessages(ctx context.Context, client *telegram.Client) ([]string, 
 		// Записываем только текстовые сообщения
 		for _, msg := range messages {
 			if message, ok := msg.(*tg.Message); ok && message.Message != "" {
-				unreadMessages = append(unreadMessages, fmt.Sprintf("[%d]: %s", message.FromID, message.Message))
+				fromID := "unknown"
+				if message.FromID != nil {
+					fromID = fmt.Sprintf("%v", message.FromID)
+				}
+				unreadMessages = append(unreadMessages, fmt.Sprintf("[%s]: %s", fromID, message.Message))
 			}
 		}
 	}
@@ -165,7 +143,7 @@ func main() {
 		log.Println("🚀 Бот запущен и подключен к Telegram")
 
 		// Авторизация
-		user, err := authorizeClient(ctx, client)
+		user, err := auth.AuthorizeClient(ctx, client.RawClient())
 		if err != nil {
 			return err
 		}
