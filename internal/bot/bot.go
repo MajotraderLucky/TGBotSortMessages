@@ -9,15 +9,15 @@ import (
 	"tgmessenger/internal/telegram"
 )
 
-// Run запускает бота
+// Run выполняет основную логику бота
 func Run(ctx context.Context, client *telegram.Client) error {
-	log.Println("🚀 Бот запущен и подключен к Telegram")
+	log.Println("🚀 Проверяем новые сообщения...")
 
 	user, err := auth.AuthorizeClient(ctx, client.RawClient())
 	if err != nil {
 		return err
 	}
-	log.Printf("✅ Успешно авторизован как %s", user.Username)
+	log.Printf("✅ Авторизован как %s", user.Username)
 
 	messages, err := telegram.GetUnreadMessages(ctx, client)
 	if err != nil {
@@ -33,6 +33,7 @@ func Run(ctx context.Context, client *telegram.Client) error {
 		log.Printf("⚠️ Ошибка сохранения Markdown: %v", err)
 	}
 
+	log.Println("✅ Обновление завершено.")
 	return nil
 }
 
