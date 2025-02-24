@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
-	"strconv"
+	"strconv" // Добавлен strconv
 
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/session"
@@ -13,31 +13,47 @@ import (
 	"tgmessenger/internal/auth"
 )
 
-func main() {
+// loadConfig загружает переменные окружения и возвращает API_ID, API_HASH
+func loadConfig() (int, string, error) {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Ошибка загрузки .env файла")
+		return 0, "", err
 	}
 
-	apiID, err := strconv.Atoi(os.Getenv("API_ID"))
+	apiID, err := strconv.Atoi(os.Getenv("API_ID")) // strconv используется здесь
 	if err != nil {
-		log.Fatal("Ошибка конвертации API_ID в int:", err)
-	}
-	apiHash := os.Getenv("API_HASH")
-	if apiHash == "" {
-		log.Fatal("API_HASH не указан в .env")
+		return 0, "", err
 	}
 
+	apiHash := os.Getenv("API_HASH") // os используется здесь
+	if apiHash == "" {
+		return 0, "", err
+	}
+
+	return apiID, apiHash, nil
+}
+
+// initTelegramClient создает новый клиент Telegram
+func initTelegramClient(apiID int, apiHash string) *telegram.Client {
 	sessStorage := &session.FileStorage{Path: "session.json"}
-	client := telegram.NewClient(apiID, apiHash, telegram.Options{
+	return telegram.NewClient(apiID, apiHash, telegram.Options{
 		SessionStorage: sessStorage,
 	})
+}
+
+func main() {
+	apiID, apiHash, err := loadConfig()
+	if err != nil {
+		log.Fatal("Ошибка загрузки конфигурации:", err)
+	}
+
+	client := initTelegramClient(apiID, apiHash)
 
 	ctx := context.Background()
 
 	err = client.Run(ctx, func(ctx context.Context) error {
 		log.Println("Бот запущен и подключен к Telegram")
 
-		user, err := auth.AuthorizeClient(ctx, client) // Используем новую функцию
+		user, err := auth.AuthorizeClient(ctx, client)
 		if err != nil {
 			return err
 		}
