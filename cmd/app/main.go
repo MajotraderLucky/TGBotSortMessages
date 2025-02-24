@@ -8,25 +8,15 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/tg"
-	"github.com/gotd/td/session"
-
 	"tgmessenger/internal/config"
+	"tgmessenger/internal/telegram"
 )
-
-// Создаём клиент Telegram
-func initTelegramClient(cfg *config.Config) *telegram.Client {
-	sessStorage := &session.FileStorage{Path: "session.json"}
-	return telegram.NewClient(cfg.APIID, cfg.APIHash, telegram.Options{
-		SessionStorage: sessStorage,
-	})
-}
 
 // Авторизация клиента
 func authorizeClient(ctx context.Context, client *telegram.Client) (*tg.User, error) {
-	api := tg.NewClient(client)
-	authClient := client.Auth()
+	api := tg.NewClient(client.RawClient())
+	authClient := client.RawClient().Auth()
 
 	status, err := authClient.Status(ctx)
 	if err != nil {
@@ -64,7 +54,7 @@ func getInputPeer(peer tg.PeerClass) tg.InputPeerClass {
 
 // Получаем непрочитанные сообщения (без каналов)
 func getUnreadMessages(ctx context.Context, client *telegram.Client) ([]string, error) {
-	api := tg.NewClient(client)
+	api := tg.NewClient(client.RawClient())
 
 	resp, err := api.MessagesGetDialogs(ctx, &tg.MessagesGetDialogsRequest{
 		OffsetPeer: &tg.InputPeerEmpty{},
@@ -161,29 +151,34 @@ func saveMessagesToJSON(messages []string) error {
 
 // Основная функция
 func main() {
+	// Загружаем конфигурацию
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatal("Ошибка загрузки конфигурации:", err)
 	}
 
-	client := initTelegramClient(cfg)
+	// Создаём Telegram клиента через обёртку
+	client := telegram.NewClient(cfg)
 	ctx := context.Background()
 
-	err = client.Run(ctx, func(ctx context.Context) error {
+	err = client.RawClient().Run(ctx, func(ctx context.Context) error {
 		log.Println("🚀 Бот запущен и подключен к Telegram")
 
+		// Авторизация
 		user, err := authorizeClient(ctx, client)
 		if err != nil {
 			return err
 		}
 		log.Printf("✅ Успешно авторизован как %s", user.Username)
 
+		// Получение сообщений
 		messages, err := getUnreadMessages(ctx, client)
 		if err != nil {
 			log.Printf("⚠️ Ошибка получения сообщений: %v", err)
 			return nil
 		}
 
+		// Сохранение сообщений
 		if err := saveMessagesToJSON(messages); err != nil {
 			log.Printf("⚠️ Ошибка сохранения сообщений: %v", err)
 		}
