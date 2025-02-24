@@ -7,37 +7,18 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/tg"
 	"github.com/gotd/td/session"
-	"github.com/joho/godotenv"
+
+	"tgmessenger/internal/config"
 )
 
-// Загружаем конфигурацию из .env
-func loadConfig() (int, string, error) {
-	if err := godotenv.Load(); err != nil {
-		return 0, "", err
-	}
-
-	apiID, err := strconv.Atoi(os.Getenv("API_ID"))
-	if err != nil {
-		return 0, "", err
-	}
-
-	apiHash := os.Getenv("API_HASH")
-	if apiHash == "" {
-		return 0, "", fmt.Errorf("API_HASH не указан")
-	}
-
-	return apiID, apiHash, nil
-}
-
 // Создаём клиент Telegram
-func initTelegramClient(apiID int, apiHash string) *telegram.Client {
+func initTelegramClient(cfg *config.Config) *telegram.Client {
 	sessStorage := &session.FileStorage{Path: "session.json"}
-	return telegram.NewClient(apiID, apiHash, telegram.Options{
+	return telegram.NewClient(cfg.APIID, cfg.APIHash, telegram.Options{
 		SessionStorage: sessStorage,
 	})
 }
@@ -180,12 +161,12 @@ func saveMessagesToJSON(messages []string) error {
 
 // Основная функция
 func main() {
-	apiID, apiHash, err := loadConfig()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatal("Ошибка загрузки конфигурации:", err)
 	}
 
-	client := initTelegramClient(apiID, apiHash)
+	client := initTelegramClient(cfg)
 	ctx := context.Background()
 
 	err = client.Run(ctx, func(ctx context.Context) error {
