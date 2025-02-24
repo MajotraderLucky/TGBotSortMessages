@@ -1,10 +1,8 @@
 package main
 
 import (
-	"context"
 	"log"
 
-	"tgmessenger/internal/auth"
 	"tgmessenger/internal/config"
 	"tgmessenger/internal/telegram"
 )
@@ -16,27 +14,9 @@ func main() {
 		log.Fatal("Ошибка загрузки конфигурации:", err)
 	}
 
-	// Создаём и запускаем бота
-	if err := runBot(cfg); err != nil {
+	// Запускаем бота через пакет telegram
+	if err := telegram.Run(cfg); err != nil {
 		log.Fatalf("Ошибка работы клиента: %v", err)
 	}
-}
-
-// runBot отвечает за запуск Telegram-клиента и авторизацию
-func runBot(cfg *config.Config) error {
-	client := telegram.NewClient(cfg)
-	ctx := context.Background()
-
-	return client.RawClient().Run(ctx, func(ctx context.Context) error {
-		log.Println("Бот запущен и подключен к Telegram")
-
-		user, err := auth.AuthorizeClient(ctx, client.RawClient())
-		if err != nil {
-			return err
-		}
-
-		log.Printf("✅ Успешно авторизован как %s", user.Username)
-		return nil
-	})
 }
 
