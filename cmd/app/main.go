@@ -14,18 +14,6 @@ import (
 	"tgmessenger/internal/telegram"
 )
 
-// Фильтр для чатов и пользователей (игнорируем каналы)
-func getInputPeer(peer tg.PeerClass) tg.InputPeerClass {
-	switch p := peer.(type) {
-	case *tg.PeerUser:
-		return &tg.InputPeerUser{UserID: p.UserID}
-	case *tg.PeerChat:
-		return &tg.InputPeerChat{ChatID: p.ChatID}
-	default:
-		return nil // Исключаем каналы
-	}
-}
-
 // Получаем непрочитанные сообщения (без каналов)
 func getUnreadMessages(ctx context.Context, client *telegram.Client) ([]string, error) {
 	api := tg.NewClient(client.RawClient()) // Создаём tg.Client
@@ -56,7 +44,7 @@ func getUnreadMessages(ctx context.Context, client *telegram.Client) ([]string, 
 			continue
 		}
 
-		inputPeer := getInputPeer(dialog.Peer)
+		inputPeer := telegram.GetInputPeer(dialog.Peer)
 		if inputPeer == nil {
 			continue // Пропускаем каналы
 		}
