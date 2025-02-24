@@ -17,4 +17,4 @@ my_session.session*
 .idea/
 *.pyc
 __pycache__/
-
+session.json
