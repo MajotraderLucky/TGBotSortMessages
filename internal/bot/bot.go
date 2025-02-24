@@ -26,7 +26,11 @@ func Run(ctx context.Context, client *telegram.Client) error {
 	}
 
 	if err := storage.SaveMessagesToJSON(messages); err != nil {
-		log.Printf("⚠️ Ошибка сохранения сообщений: %v", err)
+		log.Printf("⚠️ Ошибка сохранения JSON: %v", err)
+	}
+
+	if err := storage.SaveMessagesToMarkdown(messages); err != nil {
+		log.Printf("⚠️ Ошибка сохранения Markdown: %v", err)
 	}
 
 	return nil
