@@ -22,10 +22,10 @@ func main() {
 	ctx := context.Background()
 
 	// Запускаем клиента
-	err = client.Run(ctx, func(ctx context.Context) error {
+	err = client.RawClient().Run(ctx, func(ctx context.Context) error {
 		log.Println("Бот запущен и подключен к Telegram")
 
-		user, err := auth.AuthorizeClient(ctx, client)
+		user, err := auth.AuthorizeClient(ctx, client.RawClient())
 		if err != nil {
 			return err
 		}
