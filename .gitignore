@@ -18,3 +18,5 @@ my_session.session*
 *.pyc
 __pycache__/
 session.json
+messages/
+.messages/
