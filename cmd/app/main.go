@@ -13,8 +13,38 @@ import (
 	"github.com/joho/godotenv"
 
 	"tgmessenger/internal/auth"
-
 )
+
+// authorizeClient выполняет авторизацию в Telegram
+func authorizeClient(ctx context.Context, client *telegram.Client) (*tg.User, error) {
+	api := tg.NewClient(client)
+	authClient := client.Auth()
+
+	// Проверяем статус авторизации
+	status, err := authClient.Status(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка проверки статуса авторизации: %w", err)
+	}
+
+	// Если не авторизованы — входим
+	if !status.Authorized {
+		if err := auth.Login(ctx, authClient); err != nil {
+			return nil, fmt.Errorf("ошибка авторизации: %w", err)
+		}
+	}
+
+	// Получаем информацию о текущем пользователе
+	users, err := api.UsersGetUsers(ctx, []tg.InputUserClass{&tg.InputUserSelf{}})
+	if err != nil {
+		return nil, fmt.Errorf("ошибка получения информации о себе: %w", err)
+	}
+	user, ok := users[0].(*tg.User)
+	if !ok {
+		return nil, fmt.Errorf("ошибка приведения типа к *tg.User")
+	}
+
+	return user, nil
+}
 
 func main() {
 	// Загружаем переменные окружения
@@ -43,31 +73,14 @@ func main() {
 	// Запускаем клиент
 	err = client.Run(ctx, func(ctx context.Context) error {
 		log.Println("Бот запущен и подключен к Telegram")
-		api := tg.NewClient(client)
 
-		// Проверяем авторизацию
-		authClient := client.Auth()
-		status, err := authClient.Status(ctx)
+		// Авторизация
+		user, err := authorizeClient(ctx, client)
 		if err != nil {
-			return fmt.Errorf("Ошибка проверки статуса авторизации: %w", err)
-		}
-		if !status.Authorized {
-			if err := auth.Login(ctx, authClient); err != nil { // Используем auth.Login
-				return fmt.Errorf("Ошибка авторизации: %w", err)
-			}
+			return err
 		}
 
-		// Получаем информацию о текущем пользователе
-		users, err := api.UsersGetUsers(ctx, []tg.InputUserClass{&tg.InputUserSelf{}})
-		if err != nil {
-			return fmt.Errorf("Ошибка получения информации о себе: %w", err)
-		}
-		user, ok := users[0].(*tg.User)
-		if !ok {
-			return fmt.Errorf("Ошибка приведения типа к *tg.User")
-		}
 		log.Printf("✅ Успешно авторизован как %s", user.Username)
-
 		return nil
 	})
 
