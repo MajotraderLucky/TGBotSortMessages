@@ -1,30 +1,15 @@
 package main
 
 import (
-	"context"
 	"log"
 	"time"
 
+	"tgmessenger/internal/app"
 	"tgmessenger/internal/bot"
-	"tgmessenger/internal/config"
-	"tgmessenger/internal/telegram"
 )
 
-// initBot инициализирует конфигурацию и Telegram-клиент
-func initBot() (*telegram.Client, context.Context, context.CancelFunc) {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		log.Fatal("Ошибка загрузки конфигурации:", err)
-	}
-
-	client := telegram.NewClient(cfg)
-	ctx, cancel := context.WithCancel(context.Background())
-
-	return client, ctx, cancel
-}
-
 func main() {
-	client, ctx, cancel := initBot()
+	client, ctx, cancel := app.InitBot()
 	defer cancel()
 
 	ticker := time.NewTicker(1 * time.Minute)
