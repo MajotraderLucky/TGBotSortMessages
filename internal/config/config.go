@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"fmt"
 
 	"github.com/joho/godotenv"
 )
@@ -16,17 +17,22 @@ type Config struct {
 // LoadConfig загружает переменные окружения и возвращает Config
 func LoadConfig() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ошибка загрузки .env файла: %w", err)
 	}
 
-	apiID, err := strconv.Atoi(os.Getenv("API_ID"))
+	apiIDStr := os.Getenv("API_ID")
+	if apiIDStr == "" {
+		return nil, fmt.Errorf("переменная окружения API_ID отсутствует")
+	}
+
+	apiID, err := strconv.Atoi(apiIDStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("неверный формат API_ID: %w", err)
 	}
 
 	apiHash := os.Getenv("API_HASH")
 	if apiHash == "" {
-		return nil, err
+		return nil, fmt.Errorf("переменная окружения API_HASH отсутствует")
 	}
 
 	return &Config{

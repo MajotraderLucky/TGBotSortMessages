@@ -8,6 +8,29 @@ import (
 	"github.com/gotd/td/tg"
 )
 
+// extractMessageText извлекает текст сообщения и ID отправителя
+func extractMessageText(msg tg.MessageClass) (string, bool) {
+	if message, ok := msg.(*tg.Message); ok && message.Message != "" {
+		fromID := "unknown"
+		if message.FromID != nil {
+			fromID = fmt.Sprintf("%v", message.FromID)
+		}
+		return fmt.Sprintf("[%s]: %s", fromID, message.Message), true
+	}
+	return "", false
+}
+
+// processMessages обрабатывает список сообщений
+func processMessages(messages []tg.MessageClass) []string {
+	var result []string
+	for _, msg := range messages {
+		if text, ok := extractMessageText(msg); ok {
+			result = append(result, text)
+		}
+	}
+	return result
+}
+
 // GetDirectMessages получает входящие сообщения от всех пользователей, включая новых
 func GetDirectMessages(ctx context.Context, client *Client) ([]string, error) {
 	api := tg.NewClient(client.RawClient())
@@ -26,25 +49,9 @@ func GetDirectMessages(ctx context.Context, client *Client) ([]string, error) {
 
 	switch result := resp.(type) {
 	case *tg.MessagesMessages:
-		for _, msg := range result.Messages {
-			if message, ok := msg.(*tg.Message); ok && message.Message != "" {
-				fromID := "unknown"
-				if message.FromID != nil {
-					fromID = fmt.Sprintf("%v", message.FromID)
-				}
-				messages = append(messages, fmt.Sprintf("[%s]: %s", fromID, message.Message))
-			}
-		}
+		messages = processMessages(result.Messages)
 	case *tg.MessagesMessagesSlice:
-		for _, msg := range result.Messages {
-			if message, ok := msg.(*tg.Message); ok && message.Message != "" {
-				fromID := "unknown"
-				if message.FromID != nil {
-					fromID = fmt.Sprintf("%v", message.FromID)
-				}
-				messages = append(messages, fmt.Sprintf("[%s]: %s", fromID, message.Message))
-			}
-		}
+		messages = processMessages(result.Messages)
 	default:
 		log.Printf("⚠️ Неожиданный тип ответа в MessagesSearch: %T", resp)
 	}
@@ -96,15 +103,9 @@ func GetUnreadMessages(ctx context.Context, client *Client) ([]string, error) {
 					continue
 				}
 
-				for _, msg := range messagesHistory {
-					if message, ok := msg.(*tg.Message); ok && message.Message != "" {
-						fromID := "unknown"
-						if message.FromID != nil {
-							fromID = fmt.Sprintf("%v", message.FromID)
-						}
-						messages = append(messages, fmt.Sprintf("[%s]: %s", fromID, message.Message))
-					}
-				}
+				// Используем общую функцию для обработки сообщений
+				messagesFromChat := processMessages(messagesHistory)
+				messages = append(messages, messagesFromChat...)
 			}
 		}
 	default:
@@ -113,4 +114,3 @@ func GetUnreadMessages(ctx context.Context, client *Client) ([]string, error) {
 
 	return messages, nil
 }
-
