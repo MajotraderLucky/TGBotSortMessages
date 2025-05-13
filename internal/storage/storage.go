@@ -158,7 +158,7 @@ func SaveStructuredMessagesToMarkdown(messages []map[string]interface{}) error {
 	mdContent := "# 📩 Последние 50 сообщений (отсортированные по времени)\n\n"
 
 	if len(messagesForMD) > 0 {
-		for _, msg := range messagesForMD {
+		for i, msg := range messagesForMD {
 			// Форматируем дату
 			var dateStr string
 			if date, ok := msg["date"].(int32); ok {
@@ -171,8 +171,8 @@ func SaveStructuredMessagesToMarkdown(messages []map[string]interface{}) error {
 			text, _ := msg["text"].(string)
 			fromID, _ := msg["fromID"].(string)
 
-			// Форматируем строку с пустыми строками до и после заголовка и текста
-			mdContent += fmt.Sprintf("\n### От: %s (%s)\n\n", fromID, dateStr)
+			// Добавляем порядковый номер к заголовку, чтобы избежать дубликатов
+			mdContent += fmt.Sprintf("\n### Сообщение %d - От: %s (%s)\n\n", i+1, fromID, dateStr)
 			mdContent += fmt.Sprintf("%s\n\n", text)
 
 			// Добавляем разделитель
