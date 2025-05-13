@@ -172,10 +172,10 @@ func SaveStructuredMessagesToMarkdown(messages []map[string]interface{}) error {
 			fromID, _ := msg["fromID"].(string)
 
 			// Добавляем порядковый номер к заголовку, чтобы избежать дубликатов
-			mdContent += fmt.Sprintf("\n### Сообщение %d - От: %s (%s)\n\n", i+1, fromID, dateStr)
+			mdContent += fmt.Sprintf("## Сообщение %d - От: %s (%s)\n\n", i+1, fromID, dateStr)
 			mdContent += fmt.Sprintf("%s\n\n", text)
 
-			// Добавляем разделитель
+			// Добавляем разделитель с одной пустой строкой после
 			mdContent += "---\n\n"
 		}
 	} else {
@@ -217,7 +217,7 @@ func SaveUserGroupedMessagesToMarkdown(messagesByUser map[string][]map[string]in
 			messages := messagesByUser[user]
 
 			// Заголовок с пользователем и количеством сообщений + пустая строка
-			mdContent += fmt.Sprintf("\n## 👤 %s (%d сообщений)\n\n", user, len(messages))
+			mdContent += fmt.Sprintf("## 👤 %s (%d сообщений)\n\n", user, len(messages))
 
 			// Ограничиваем количество сообщений для каждого пользователя
 			msgLimit := 10
@@ -240,14 +240,15 @@ func SaveUserGroupedMessagesToMarkdown(messagesByUser map[string][]map[string]in
 				// Получаем текст сообщения
 				text, _ := msg["text"].(string)
 
-				// Форматируем строку
-				mdContent += fmt.Sprintf("\n### %s\n\n", dateStr)
+				// Используем h3 (###) вместо h2 (##) для согласованности с иерархией
+				// и только одну пустую строку
+				mdContent += fmt.Sprintf("### %s\n\n", dateStr)
 				mdContent += fmt.Sprintf("%s\n\n", text)
 			}
 
 			// Если у пользователя больше сообщений, добавляем сноску
 			if len(messages) > msgLimit {
-				mdContent += fmt.Sprintf("\n... и еще %d сообщений\n\n", len(messages)-msgLimit)
+				mdContent += fmt.Sprintf("... и еще %d сообщений\n\n", len(messages)-msgLimit)
 			}
 
 			// Добавляем разделитель между пользователями
