@@ -32,8 +32,8 @@ func main() {
 		log.Printf("   - Режим отладки: включен")
 	}
 
-	// Получаем клиента
-	client, ctx, cancel := app.InitBot()
+	// Получаем клиента, передавая загруженную конфигурацию
+	client, ctx, cancel := app.InitBot(cfg)
 	defer cancel()
 
 	// Настраиваем перехват сигналов для корректного завершения

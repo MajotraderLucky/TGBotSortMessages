@@ -9,12 +9,19 @@ import (
 
 	"tgmessenger/internal/app"
 	"tgmessenger/internal/auth"
+	"tgmessenger/internal/config"
 )
 
 func main() {
 	fmt.Println("🔐 Программа авторизации в Telegram")
 
-	client, ctx, cancel := app.InitBot()
+	// Загружаем конфигурацию
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("❌ Ошибка загрузки конфигурации: %v", err)
+	}
+
+	client, ctx, cancel := app.InitBot(cfg)
 	defer cancel()
 
 	// Перехватываем Ctrl+C
@@ -32,7 +39,7 @@ func main() {
 
 	// Запускаем клиента и выполняем авторизацию в его контексте
 	log.Println("📡 Запускаем клиент Telegram...")
-	err := rawClient.Run(ctx, func(ctx context.Context) error {
+	err = rawClient.Run(ctx, func(ctx context.Context) error {
 		// Выполняем вход, запрашивая номер телефона и код
 		authClient := rawClient.Auth()
 		log.Println("📱 Начинаем авторизацию...")

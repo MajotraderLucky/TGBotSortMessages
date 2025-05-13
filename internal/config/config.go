@@ -33,7 +33,7 @@ func LoadConfig() (*Config, error) {
 	}
 
 	// Определяем флаги командной строки
-	messagesPerDialog := flag.Int("messages", config.MessagesPerDialog, "Количество сообщений для получения из каждого диалога")
+	messagesPerDialog := flag.Int("msgs", config.MessagesPerDialog, "Количество сообщений для получения из каждого диалога")
 	updateInterval := flag.Int("interval", config.UpdateInterval, "Интервал обновления в секундах")
 	outputFormats := flag.String("formats", "json,markdown", "Форматы вывода (через запятую): json,markdown")
 	debug := flag.Bool("debug", config.Debug, "Включить подробный вывод отладочной информации")
