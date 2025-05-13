@@ -94,12 +94,21 @@ func SaveMessagesToMarkdown(messages []string) error {
 	mdContent := "# 📩 Последние 50 сообщений\n\n"
 
 	if len(messages) > 0 {
-		// Добавляем пустую строку перед списком
+		// Изменяем квадратные скобки на круглые скобки для избежания ошибок Markdown
 		for _, msg := range messages {
-			mdContent += fmt.Sprintf("- %s\n", msg)
+			// Заменить квадратные скобки на круглые
+			formattedMsg := ""
+			for _, char := range msg {
+				if char == '[' {
+					formattedMsg += "("
+				} else if char == ']' {
+					formattedMsg += ")"
+				} else {
+					formattedMsg += string(char)
+				}
+			}
+			mdContent += fmt.Sprintf("- %s\n", formattedMsg)
 		}
-		// Добавляем пустую строку после списка
-		mdContent += "\n"
 	} else {
 		mdContent += "Нет новых сообщений.\n"
 	}
