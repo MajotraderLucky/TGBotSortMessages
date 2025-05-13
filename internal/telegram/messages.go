@@ -4,35 +4,58 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
 
 	"github.com/gotd/td/tg"
 )
 
-// extractMessageText извлекает текст сообщения и ID отправителя
-func extractMessageText(msg tg.MessageClass) (string, bool) {
+// extractMessageText извлекает текст сообщения и информацию об отправителе
+func extractMessageText(msg tg.MessageClass) (string, map[string]interface{}, bool) {
 	if message, ok := msg.(*tg.Message); ok && message.Message != "" {
-		fromID := "unknown"
-		if message.FromID != nil {
-			fromID = fmt.Sprintf("%v", message.FromID)
+		// Собираем всю информацию о сообщении
+		msgInfo := map[string]interface{}{
+			"text":    message.Message,
+			"id":      message.ID,
+			"date":    message.Date,
+			"fromID":  "unknown",
+			"replyTo": nil,
 		}
-		return fmt.Sprintf("[%s]: %s", fromID, message.Message), true
+
+		// Получаем ID отправителя
+		if message.FromID != nil {
+			msgInfo["fromID"] = fmt.Sprintf("%v", message.FromID)
+		}
+
+		// Проверяем наличие ответа на сообщение
+		if message.ReplyTo != nil {
+			if reply, ok := message.ReplyTo.(*tg.MessageReplyHeader); ok {
+				msgInfo["replyTo"] = reply.ReplyToMsgID
+			}
+		}
+
+		// Форматируем вывод
+		formattedText := fmt.Sprintf("[%s][%d]: %s", msgInfo["fromID"], message.Date, message.Message)
+		return formattedText, msgInfo, true
 	}
-	return "", false
+	return "", nil, false
 }
 
 // processMessages обрабатывает список сообщений
-func processMessages(messages []tg.MessageClass) []string {
-	var result []string
+func processMessages(messages []tg.MessageClass) ([]string, []map[string]interface{}) {
+	var textResults []string
+	var structuredResults []map[string]interface{}
+
 	for _, msg := range messages {
-		if text, ok := extractMessageText(msg); ok {
-			result = append(result, text)
+		if text, info, ok := extractMessageText(msg); ok {
+			textResults = append(textResults, text)
+			structuredResults = append(structuredResults, info)
 		}
 	}
-	return result
+	return textResults, structuredResults
 }
 
 // GetLatestMessages получает последние N сообщений из каждого диалога
-func GetLatestMessages(ctx context.Context, client *Client, messagesPerDialog int) ([]string, error) {
+func GetLatestMessages(ctx context.Context, client *Client, messagesPerDialog int) ([]string, []map[string]interface{}, error) {
 	log.Printf("🔍 Запрашиваем последние %d сообщений из каждого диалога...", messagesPerDialog)
 
 	api := tg.NewClient(client.RawClient())
@@ -43,11 +66,12 @@ func GetLatestMessages(ctx context.Context, client *Client, messagesPerDialog in
 		Limit:      100, // Увеличиваем лимит для получения большего количества диалогов
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ошибка получения диалогов: %w", err)
+		return nil, nil, fmt.Errorf("ошибка получения диалогов: %w", err)
 	}
 
 	log.Printf("✅ Получен ответ от MessagesGetDialogs: %T", resp)
-	var allMessages []string
+	var allTextMessages []string
+	var allStructuredMessages []map[string]interface{}
 	var dialogCount int
 	var processedDialogs int
 
@@ -108,9 +132,10 @@ func GetLatestMessages(ctx context.Context, client *Client, messagesPerDialog in
 			}
 
 			// Обрабатываем сообщения
-			processedMessages := processMessages(messagesHistory)
+			processedMessages, structuredMessages := processMessages(messagesHistory)
 			log.Printf("📨 Обработано %d сообщений из диалога", len(processedMessages))
-			allMessages = append(allMessages, processedMessages...)
+			allTextMessages = append(allTextMessages, processedMessages...)
+			allStructuredMessages = append(allStructuredMessages, structuredMessages...)
 		}
 
 	case *tg.MessagesDialogsSlice:
@@ -169,9 +194,10 @@ func GetLatestMessages(ctx context.Context, client *Client, messagesPerDialog in
 			}
 
 			// Обрабатываем сообщения
-			processedMessages := processMessages(messagesHistory)
+			processedMessages, structuredMessages := processMessages(messagesHistory)
 			log.Printf("📨 Обработано %d сообщений из диалога", len(processedMessages))
-			allMessages = append(allMessages, processedMessages...)
+			allTextMessages = append(allTextMessages, processedMessages...)
+			allStructuredMessages = append(allStructuredMessages, structuredMessages...)
 		}
 
 	default:
@@ -179,12 +205,12 @@ func GetLatestMessages(ctx context.Context, client *Client, messagesPerDialog in
 	}
 
 	log.Printf("📨 Всего получено %d сообщений из %d успешно обработанных диалогов (всего найдено: %d)",
-		len(allMessages), processedDialogs, dialogCount)
-	return allMessages, nil
+		len(allTextMessages), processedDialogs, dialogCount)
+	return allTextMessages, allStructuredMessages, nil
 }
 
 // GetDirectMessages получает входящие сообщения от всех пользователей, включая новых
-func GetDirectMessages(ctx context.Context, client *Client) ([]string, error) {
+func GetDirectMessages(ctx context.Context, client *Client) ([]string, []map[string]interface{}, error) {
 	log.Println("🔍 Запрашиваем входящие сообщения через MessagesSearch...")
 
 	api := tg.NewClient(client.RawClient())
@@ -210,33 +236,34 @@ func GetDirectMessages(ctx context.Context, client *Client) ([]string, error) {
 		Filter: nil,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ошибка поиска сообщений: %w", err)
+		return nil, nil, fmt.Errorf("ошибка поиска сообщений: %w", err)
 	}
 
 	log.Printf("✅ Получен ответ от MessagesSearch: %T", resp)
-	var messages []string
+	var textMessages []string
+	var structuredMessages []map[string]interface{}
 
 	switch result := resp.(type) {
 	case *tg.MessagesMessages:
 		log.Printf("📨 MessagesMessages: найдено %d сообщений", len(result.Messages))
-		messages = processMessages(result.Messages)
+		textMessages, structuredMessages = processMessages(result.Messages)
 	case *tg.MessagesMessagesSlice:
 		log.Printf("📨 MessagesMessagesSlice: найдено %d сообщений", len(result.Messages))
-		messages = processMessages(result.Messages)
+		textMessages, structuredMessages = processMessages(result.Messages)
 	case *tg.MessagesChannelMessages:
 		log.Printf("📨 MessagesChannelMessages: найдено %d сообщений", len(result.Messages))
-		messages = processMessages(result.Messages)
+		textMessages, structuredMessages = processMessages(result.Messages)
 	case *tg.MessagesMessagesNotModified:
 		log.Println("📨 MessagesMessagesNotModified: сообщения не изменились")
 	default:
 		log.Printf("⚠️ Неожиданный тип ответа в MessagesSearch: %T", resp)
 	}
 
-	return messages, nil
+	return textMessages, structuredMessages, nil
 }
 
 // GetUnreadMessages получает непрочитанные сообщения из чатов и групп
-func GetUnreadMessages(ctx context.Context, client *Client) ([]string, error) {
+func GetUnreadMessages(ctx context.Context, client *Client) ([]string, []map[string]interface{}, error) {
 	log.Println("🔍 Запрашиваем непрочитанные сообщения...")
 
 	api := tg.NewClient(client.RawClient())
@@ -246,11 +273,12 @@ func GetUnreadMessages(ctx context.Context, client *Client) ([]string, error) {
 		Limit:      50,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ошибка получения диалогов: %w", err)
+		return nil, nil, fmt.Errorf("ошибка получения диалогов: %w", err)
 	}
 
 	log.Printf("✅ Получен ответ от MessagesGetDialogs: %T", resp)
-	var messages []string
+	var textMessages []string
+	var structuredMessages []map[string]interface{}
 	var dialogCount int
 
 	switch result := resp.(type) {
@@ -299,9 +327,10 @@ func GetUnreadMessages(ctx context.Context, client *Client) ([]string, error) {
 				}
 
 				// Используем общую функцию для обработки сообщений
-				messagesFromChat := processMessages(messagesHistory)
+				messagesFromChat, structuredFromChat := processMessages(messagesHistory)
 				log.Printf("📨 Обработано %d сообщений из истории", len(messagesFromChat))
-				messages = append(messages, messagesFromChat...)
+				textMessages = append(textMessages, messagesFromChat...)
+				structuredMessages = append(structuredMessages, structuredFromChat...)
 			}
 		}
 		log.Printf("📨 Всего диалогов с непрочитанными сообщениями: %d", unreadDialogs)
@@ -351,9 +380,10 @@ func GetUnreadMessages(ctx context.Context, client *Client) ([]string, error) {
 				}
 
 				// Используем общую функцию для обработки сообщений
-				messagesFromChat := processMessages(messagesHistory)
+				messagesFromChat, structuredFromChat := processMessages(messagesHistory)
 				log.Printf("📨 Обработано %d сообщений из истории", len(messagesFromChat))
-				messages = append(messages, messagesFromChat...)
+				textMessages = append(textMessages, messagesFromChat...)
+				structuredMessages = append(structuredMessages, structuredFromChat...)
 			}
 		}
 		log.Printf("📨 Всего диалогов с непрочитанными сообщениями: %d", unreadDialogs)
@@ -362,6 +392,51 @@ func GetUnreadMessages(ctx context.Context, client *Client) ([]string, error) {
 		log.Printf("⚠️ Неожиданный тип ответа в MessagesGetDialogs: %T", resp)
 	}
 
-	log.Printf("📨 Всего обработано %d непрочитанных сообщений из %d диалогов", len(messages), dialogCount)
-	return messages, nil
+	log.Printf("📨 Всего обработано %d непрочитанных сообщений из %d диалогов", len(textMessages), dialogCount)
+	return textMessages, structuredMessages, nil
+}
+
+// SortMessagesByDate сортирует сообщения по дате (от новых к старым)
+func SortMessagesByDate(messages []map[string]interface{}) []map[string]interface{} {
+	result := make([]map[string]interface{}, len(messages))
+	copy(result, messages)
+
+	// Сортируем от новых к старым
+	sortFunc := func(i, j int) bool {
+		// Получаем дату каждого сообщения
+		dateI, okI := result[i]["date"].(int32)
+		dateJ, okJ := result[j]["date"].(int32)
+
+		// Если не можем получить даты, считаем сообщения равными
+		if !okI || !okJ {
+			return false
+		}
+
+		// Сортируем от новых к старым (в обратном порядке)
+		return dateI > dateJ
+	}
+
+	sort.Slice(result, sortFunc)
+	return result
+}
+
+// SortMessagesByUser группирует сообщения по отправителю
+func SortMessagesByUser(messages []map[string]interface{}) map[string][]map[string]interface{} {
+	result := make(map[string][]map[string]interface{})
+
+	for _, msg := range messages {
+		fromID, ok := msg["fromID"].(string)
+		if !ok {
+			fromID = "unknown"
+		}
+
+		result[fromID] = append(result[fromID], msg)
+	}
+
+	// Сортируем сообщения каждого пользователя по дате
+	for userID := range result {
+		result[userID] = SortMessagesByDate(result[userID])
+	}
+
+	return result
 }

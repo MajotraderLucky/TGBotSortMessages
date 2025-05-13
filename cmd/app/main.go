@@ -11,10 +11,26 @@ import (
 
 	"tgmessenger/internal/app"
 	"tgmessenger/internal/bot"
+	"tgmessenger/internal/config"
 )
 
 func main() {
 	log.Println("🚀 Начинаем запуск бота...")
+
+	// Загружаем конфигурацию
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("❌ Ошибка загрузки конфигурации: %v", err)
+	}
+
+	// Выводим информацию о конфигурации
+	log.Printf("📋 Загружена конфигурация:")
+	log.Printf("   - Количество сообщений: %d", cfg.MessagesPerDialog)
+	log.Printf("   - Интервал обновления: %d сек", cfg.UpdateInterval)
+	log.Printf("   - Форматы вывода: %v", cfg.OutputFormats)
+	if cfg.Debug {
+		log.Printf("   - Режим отладки: включен")
+	}
 
 	// Получаем клиента
 	client, ctx, cancel := app.InitBot()
@@ -24,9 +40,9 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	log.Println("🚀 Бот запущен! Проверка сообщений каждую минуту.")
+	log.Printf("🚀 Бот запущен! Проверка сообщений каждые %d секунд.", cfg.UpdateInterval)
 
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(time.Duration(cfg.UpdateInterval) * time.Second)
 	defer ticker.Stop()
 
 	// Мьютекс для защиты от одновременных выполнений bot.Run
@@ -40,7 +56,7 @@ func main() {
 		mu.Lock()
 		isRunning = true
 		log.Println("🔄 Запускаем первый bot.Run...")
-		if err := bot.Run(ctx, client); err != nil {
+		if err := bot.Run(ctx, client, cfg); err != nil {
 			log.Printf("⚠️ Ошибка первого запуска бота: %v", err)
 		}
 		log.Println("✅ Первый bot.Run завершился")
@@ -69,13 +85,13 @@ func main() {
 			mu.Unlock()
 
 			// Создаем новый контекст для каждого запуска
-			runCtx, runCancel := context.WithTimeout(ctx, 55*time.Second)
+			runCtx, runCancel := context.WithTimeout(ctx, time.Duration(cfg.UpdateInterval-5)*time.Second)
 
 			log.Println("🔄 Запускаем bot.Run...")
 			go func() {
 				defer runCancel() // Отмена контекста при завершении
 				log.Println("🔄 Запуск проверки сообщений...")
-				if err := bot.Run(runCtx, client); err != nil {
+				if err := bot.Run(runCtx, client, cfg); err != nil {
 					log.Printf("⚠️ Ошибка работы бота: %v", err)
 				}
 				log.Println("✅ bot.Run завершился")

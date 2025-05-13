@@ -11,12 +11,18 @@ my_session.session*
 
 # Игнорируем лог-файлы
 *.log
+messages.log
+errors.log
+unknown_senders.log
 
 # Игнорируем файлы IDE
 .vscode/
 .idea/
+.cursor/
 *.pyc
 __pycache__/
+
+# Игнорируем файлы сессии и сообщений
 session.json
 messages/
 .messages/
