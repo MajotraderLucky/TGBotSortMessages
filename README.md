@@ -1,70 +1,135 @@
-# Telegram Message Bot
+# Telegram Message Sorter
 
-A Telegram bot built using [gotd](https://github.com/gotd/td) that retrieves unread messages (excluding channels) and saves them in JSON and Markdown formats.
+Приложение для получения, сортировки и организации сообщений из Telegram аккаунта. Использует библиотеку [gotd](https://github.com/gotd/td) для работы с Telegram API.
 
-## Features
-- **Automatic Telegram Login**: Uses phone number authentication.
-- **Fetch Unread Messages**: Retrieves unread messages from private chats and groups.
-- **Storage**: Saves messages as:
-  - `unread.json` (formatted JSON file)
-  - `latest_messages.md` (Markdown file with the last 50 messages)
-- **Scheduled Execution**: Runs every minute to check for new messages.
+## Возможности
 
-## Installation
-### Prerequisites
+- **Авторизация в Telegram**: Используется отдельное приложение для авторизации через номер телефона
+- **Получение сообщений**:
+  - Последние сообщения из личных диалогов
+  - Непрочитанные сообщения
+  - Поиск сообщений
+- **Сортировка и организация**:
+  - Сортировка по дате (от новых к старым)
+  - Группировка по отправителям
+  - Форматирование с метаданными (дата, ID)
+- **Сохранение**:
+  - Сохранение в JSON (простой и структурированный)
+  - Сохранение в Markdown с форматированием
+  - Группировка сообщений по пользователям
+- **Регулярное обновление**: Проверка новых сообщений каждую минуту
+
+## Установка
+
+### Требования
+
 - Go 1.18+
-- Telegram API credentials (API_ID and API_HASH)
-- A valid phone number linked to a Telegram account
+- Telegram API ключи (API_ID и API_HASH)
+- Номер телефона, привязанный к Telegram аккаунту
 
-### Setup
-1. Clone the repository:
+### Настройка
+
+1. Клонируйте репозиторий:
+
    ```sh
-   git clone https://github.com/yourusername/telegram-message-bot.git
-   cd telegram-message-bot
+   git clone https://github.com/yourusername/tgmessenger.git
+   cd tgmessenger
    ```
-2. Create a `.env` file with your Telegram API credentials:
-   ```sh
-   API_ID=your_api_id
-   API_HASH=your_api_hash
+
+2. Создайте файл `.env` с вашими Telegram API ключами:
+
+   ```env
+   API_ID=ваш_api_id
+   API_HASH=ваш_api_hash
    ```
-3. Install dependencies:
+
+3. Установите зависимости:
+
    ```sh
    go mod tidy
    ```
 
-## Usage
-To run the bot, execute:
+## Использование
+
+### 1. Авторизация (требуется только один раз)
+
+Запустите скрипт авторизации и следуйте инструкциям:
+
 ```sh
-go run main.go
+./auth.sh
 ```
-The bot will log into Telegram and start checking messages every minute.
 
-## File Structure
+или
+
+```sh
+go run cmd/auth/main.go
 ```
+
+### 2. Запуск основного приложения
+
+После успешной авторизации запустите основное приложение:
+
+```sh
+go run cmd/app/main.go
+```
+
+Приложение будет:
+
+- Получать сообщения из Telegram
+- Сортировать их по времени и отправителям
+- Сохранять в несколько файлов в каталоге `messages/`:
+  - `unread.json` - простой список сообщений
+  - `structured.json` - структурированные сообщения с метаданными
+  - `sorted_by_user.json` - сообщения, сгруппированные по отправителям
+  - `latest_messages.md` - последние 50 сообщений в Markdown
+  - `structured_messages.md` - форматированные сообщения с датой
+  - `messages_by_user.md` - сообщения, сгруппированные по отправителям
+
+## Структура проекта
+
+```text
 .
-├── internal
-│   ├── auth            # Handles authentication
-│   ├── bot             # Core bot logic
-│   ├── config          # Loads environment variables
-│   ├── storage         # Saves messages in JSON and Markdown
-│   ├── telegram        # Telegram API integration
-├── main.go             # Entry point
-├── go.mod              # Go modules file
-├── go.sum              # Dependencies checksum
-└── README.md           # Project documentation
+├── cmd/
+│   ├── app/              # Основное приложение
+│   │   └── main.go
+│   └── auth/             # Утилита авторизации
+│       └── main.go
+├── internal/
+│   ├── app/              # Инициализация приложения
+│   ├── auth/             # Логика авторизации
+│   ├── bot/              # Основная логика бота
+│   ├── config/           # Загрузка конфигурации
+│   ├── storage/          # Сохранение сообщений
+│   └── telegram/         # Интеграция с Telegram API
+├── messages/             # Каталог для сохранения сообщений
+├── .env                  # Файл с API ключами
+├── .gitignore
+├── auth.sh               # Скрипт для запуска авторизации
+├── go.mod
+├── go.sum
+└── README.md
 ```
 
-## How It Works
-1. Loads the Telegram API credentials from the `.env` file.
-2. Logs in using the provided phone number.
-3. Retrieves unread messages from personal chats and groups.
-4. Saves the messages in `messages/unread.json` and `messages/latest_messages.md`.
-5. Runs a loop that checks for new messages every minute.
+## Как это работает
 
-## Contributions
-Feel free to fork and submit pull requests! Any improvements are welcome.
+1. Программа загружает API ключи для Telegram из файла `.env`
+2. Использует существующую сессию для авторизации (созданную через `auth.sh`)
+3. Получает последние сообщения из диалогов, непрочитанные сообщения и результаты поиска
+4. Структурирует сообщения, добавляя к ним метаданные (дата, ID отправителя)
+5. Сортирует сообщения по дате и группирует по отправителям
+6. Сохраняет результаты в различных форматах (JSON, Markdown)
+7. Повторяет процесс каждую минуту
 
-## License
-This project is licensed under the MIT License.
+## Развитие проекта
 
+### Планируемые улучшения
 
+- Добавление фильтрации сообщений по ключевым словам
+- Интерфейс командной строки для гибкой настройки
+- Интеграция с базой данных для хранения истории
+- Статистика по сообщениям (графики, тепловые карты)
+- Экспорт в другие форматы
+
+## Лицензия
+
+MIT
