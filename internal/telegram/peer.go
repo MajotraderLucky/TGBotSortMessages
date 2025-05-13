@@ -9,8 +9,9 @@ func GetInputPeer(peer tg.PeerClass) tg.InputPeerClass {
 		return &tg.InputPeerUser{UserID: p.UserID}
 	case *tg.PeerChat:
 		return &tg.InputPeerChat{ChatID: p.ChatID}
+	case *tg.PeerChannel:
+		return &tg.InputPeerChannel{ChannelID: p.ChannelID}
 	default:
 		return nil // Исключаем каналы
 	}
 }
-

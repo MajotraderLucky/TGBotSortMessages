@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
 	"tgmessenger/internal/app"
@@ -9,28 +14,76 @@ import (
 )
 
 func main() {
+	log.Println("🚀 Начинаем запуск бота...")
+
+	// Получаем клиента
 	client, ctx, cancel := app.InitBot()
 	defer cancel()
+
+	// Настраиваем перехват сигналов для корректного завершения
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	log.Println("🚀 Бот запущен! Проверка сообщений каждую минуту.")
 
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
-	log.Println("🚀 Бот запущен! Проверка сообщений каждую минуту.")
+	// Мьютекс для защиты от одновременных выполнений bot.Run
+	var mu sync.Mutex
+	// Флаг, показывающий, что операция в процессе выполнения
+	isRunning := false
+
+	// Запустим первую проверку сразу
+	log.Println("🔄 Запускаем первую проверку сообщений...")
+	go func() {
+		mu.Lock()
+		isRunning = true
+		log.Println("🔄 Запускаем первый bot.Run...")
+		if err := bot.Run(ctx, client); err != nil {
+			log.Printf("⚠️ Ошибка первого запуска бота: %v", err)
+		}
+		log.Println("✅ Первый bot.Run завершился")
+		isRunning = false
+		mu.Unlock()
+	}()
 
 	for {
 		select {
 		case <-ctx.Done():
 			log.Println("⏹️ Завершаем работу бота...")
 			return
+		case sig := <-sigs:
+			log.Printf("⏹️ Получен сигнал %v, завершаем работу...", sig)
+			cancel()
+			return
 		case <-ticker.C:
-			log.Println("🔄 Запускаем bot.Run...") // Отладочный вывод перед запуском bot.Run
+			// Проверяем, не выполняется ли уже команда
+			mu.Lock()
+			if isRunning {
+				log.Println("⏸️ Предыдущая команда ещё выполняется, пропускаем запуск")
+				mu.Unlock()
+				continue
+			}
+			isRunning = true
+			mu.Unlock()
+
+			// Создаем новый контекст для каждого запуска
+			runCtx, runCancel := context.WithTimeout(ctx, 55*time.Second)
+
+			log.Println("🔄 Запускаем bot.Run...")
 			go func() {
-				if err := bot.Run(ctx, client); err != nil {
+				defer runCancel() // Отмена контекста при завершении
+				log.Println("🔄 Запуск проверки сообщений...")
+				if err := bot.Run(runCtx, client); err != nil {
 					log.Printf("⚠️ Ошибка работы бота: %v", err)
 				}
-				log.Println("✅ bot.Run завершился") // Отладочный вывод после выполнения bot.Run
+				log.Println("✅ bot.Run завершился")
+
+				mu.Lock()
+				isRunning = false
+				mu.Unlock()
 			}()
 		}
 	}
 }
-

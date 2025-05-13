@@ -45,9 +45,15 @@ func SaveMessagesToMarkdown(messages []string) error {
 	}
 
 	// Формируем Markdown-формат
-	mdContent := "# 📩 Последние 50 сообщений\n\n"
-	for _, msg := range messages {
-		mdContent += fmt.Sprintf("- %s\n", msg)
+	mdContent := "# 📩 Последние 50 сообщений\n"
+
+	if len(messages) > 0 {
+		mdContent += "\n" // Одна пустая строка после заголовка
+		for _, msg := range messages {
+			mdContent += fmt.Sprintf("- %s\n", msg)
+		}
+	} else {
+		mdContent += "\nНет новых сообщений.\n" // Добавляем информативное сообщение
 	}
 
 	if err := os.WriteFile(filePath, []byte(mdContent), 0644); err != nil {
@@ -57,4 +63,3 @@ func SaveMessagesToMarkdown(messages []string) error {
 	log.Printf("📂 Сообщения сохранены в %s", filePath)
 	return nil
 }
-

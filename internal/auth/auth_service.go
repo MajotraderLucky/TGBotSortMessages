@@ -24,14 +24,11 @@ func AuthorizeClient(ctx context.Context, client *telegram.Client) (*tg.User, er
 	}
 	fmt.Printf("🔍 auth.AuthorizeClient: Статус авторизации: %v\n", status.Authorized) // Отладка
 
-	// Если не авторизованы — входим
+	// Только проверяем статус, не пытаемся авторизоваться,
+	// так как это требует интерактивного ввода
 	if !status.Authorized {
-		fmt.Println("🔍 auth.AuthorizeClient: Запуск авторизации...") // Отладка
-		if err := Login(ctx, authClient); err != nil {
-			log.Printf("⚠️ Ошибка авторизации: %v", err)
-			return nil, err
-		}
-		fmt.Println("✅ auth.AuthorizeClient: Авторизация прошла") // Отладка
+		log.Println("⚠️ Не авторизован. Запустите программу с интерактивным входом или воспользуйтесь существующей сессией")
+		return nil, fmt.Errorf("требуется авторизация")
 	}
 
 	// Получаем информацию о текущем пользователе
@@ -40,6 +37,11 @@ func AuthorizeClient(ctx context.Context, client *telegram.Client) (*tg.User, er
 	if err != nil {
 		log.Printf("⚠️ Ошибка получения информации о себе: %v", err)
 		return nil, err
+	}
+
+	if len(users) == 0 {
+		log.Println("⚠️ Список пользователей пуст")
+		return nil, fmt.Errorf("список пользователей пуст")
 	}
 
 	user, ok := users[0].(*tg.User)
@@ -51,4 +53,3 @@ func AuthorizeClient(ctx context.Context, client *telegram.Client) (*tg.User, er
 	fmt.Printf("✅ auth.AuthorizeClient: Авторизован как %s\n", user.Username) // Отладка
 	return user, nil
 }
-
